@@ -1,18 +1,13 @@
-import {
-  keepPreviousData,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { createNote, deleteNote, fetchNotes } from "../../services/noteService";
+import { fetchNotes } from "../../services/noteService";
 import css from "./App.module.css";
 import NoteList from "../NoteList/NoteList";
 import SearchBox from "../SearchBox/SearchBox";
 import { useDebouncedCallback } from "use-debounce";
 import Pagination from "../Pagination/Pagination";
 import Modal from "../Modal/Modal";
-import type { NoteFormValues } from "../NoteForm/NoteForm";
+import NoteForm from "../NoteForm/NoteForm";
 import Loader from "../Loader/Loader";
 import ErrorMessage from "../ErrorMessage/ErrorMessage";
 
@@ -24,30 +19,14 @@ const App = () => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["Notes", query, page],
     queryFn: () => fetchNotes(query, page),
-
     placeholderData: keepPreviousData,
   });
 
   const onPageChange = (nextPage: number) => {
     setPage(nextPage);
   };
-  const queryClient = useQueryClient();
-  const deleteNoteMutation = useMutation({
-    mutationFn: deleteNote,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["Notes"] });
-    },
-  });
-
-  const createNoteMutation = useMutation({
-    mutationFn: createNote,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["Notes"] });
-    },
-  });
 
   const notes = data?.notes ?? [];
-
   const totalPages = data?.totalPages ?? 0;
 
   const handleSearch = useDebouncedCallback(
@@ -55,15 +34,11 @@ const App = () => {
       setQuery(event.target.value);
       setPage(1);
     },
-
     300,
   );
-  const onDeleteNote = async (id: string) => {
-    await deleteNoteMutation.mutateAsync(id);
-  };
 
-  const onCreateNote = async (note: NoteFormValues) => {
-    await createNoteMutation.mutateAsync(note);
+  const handleCloseModal = () => {
+    setIsOpenModal(false);
   };
 
   return (
@@ -87,15 +62,14 @@ const App = () => {
       ) : isError ? (
         <ErrorMessage />
       ) : notes.length > 0 ? (
-        <NoteList notes={notes} onDeleteNote={onDeleteNote} />
+        <NoteList notes={notes} />
       ) : (
         <p>No notes found.</p>
       )}
       {isOpenModal && (
-        <Modal
-          onCreateNote={onCreateNote}
-          onClose={() => setIsOpenModal(false)}
-        />
+        <Modal onClose={handleCloseModal}>
+          <NoteForm closeModal={handleCloseModal} />
+        </Modal>
       )}
     </div>
   );

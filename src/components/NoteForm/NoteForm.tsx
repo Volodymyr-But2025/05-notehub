@@ -1,8 +1,9 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ErrorMessage, Field, Form, Formik, type FormikHelpers } from "formik";
 import css from "./NoteForm.module.css";
 import { useId } from "react";
 import * as Yup from "yup";
-import type { CreateNotePayload } from "../../services/noteService";
+import { createNote, type CreateNotePayload } from "../../services/noteService";
 import type { NoteTag } from "../../types/note";
 
 const NOTE_TAGS: NoteTag[] = [
@@ -37,11 +38,19 @@ const initialValues: NoteFormValues = {
 
 interface NoteFormProps {
   closeModal: () => void;
-  onCreateNote: (note: NoteFormValues) => Promise<void>;
 }
 
-const NoteForm = ({ closeModal, onCreateNote }: NoteFormProps) => {
+const NoteForm = ({ closeModal }: NoteFormProps) => {
   const fieldId = useId();
+  const queryClient = useQueryClient();
+
+  const createNoteMutation = useMutation({
+    mutationFn: createNote,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["Notes"] });
+      closeModal();
+    },
+  });
 
   return (
     <Formik
@@ -52,8 +61,7 @@ const NoteForm = ({ closeModal, onCreateNote }: NoteFormProps) => {
         actions: FormikHelpers<NoteFormValues>,
       ) => {
         try {
-          await onCreateNote(values);
-          closeModal();
+          await createNoteMutation.mutateAsync(values);
         } finally {
           actions.setSubmitting(false);
         }
